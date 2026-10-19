@@ -26,3 +26,10 @@ Sidebar scrolls independently on desktop using a sticky full-height container, a
 - Failed/rejected authentication hides it again.
 - Attempting to open `/customer-service/` without the demo session authorization redirects to `/customer/`.
 - Access state is stored in browser sessionStorage for demo only; it must never be used to secure real banking services.
+
+
+## V14: re-verification after leaving Verified Customer Service
+- Once you leave `/customer-service/` (sidebar, dashboard, browser Back, refresh or navigation), demo customer verification authorization is revoked.
+- Browser Back/Forward cached service pages redirect to `/customer/` unless there is a fresh accepted verification.
+- A successful customer verification is necessary for each new visit to the service page.
+- This is a front-end demonstration only, not secure banking authentication or authorization.

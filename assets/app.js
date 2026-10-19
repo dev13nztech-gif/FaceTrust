@@ -15,8 +15,31 @@ function syncAuthorizedMenu(){
  });
 }
 syncAuthorizedMenu();
-function nav(target){if(target==='customer-service'&&!readState().serviceAuthorized){location.href=routes.customer;return}location.href=routes[target]||routes.overview}
+function revokeCustomerVerification(){
+ const st=readState();
+ if(st.serviceAuthorized){sessionStorage.setItem('facetrustDemo',JSON.stringify({...st,serviceAuthorized:false}));syncAuthorizedMenu()}
+}
+function nav(target){
+ if(target==='customer-service'&&!readState().serviceAuthorized){location.href=routes.customer;return}
+ if(page==='customer-service' && target!=='customer-service')revokeCustomerVerification();
+ location.href=routes[target]||routes.overview;
+}
 document.querySelectorAll('[data-go]').forEach(el=>el.addEventListener('click',()=>nav(el.dataset.go)));
+// Real anchor navigation, browser Back/Forward, refresh and tab exit must not preserve demo access.
+if(page==='customer-service'){
+ window.addEventListener('pagehide',revokeCustomerVerification);
+ // Direct links in the sidebar do not use nav().
+ document.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',()=>{
+   if(new URL(a.href,location.href).pathname!==routes['customer-service'])revokeCustomerVerification();
+ }));
+ // A browser may restore this page from back-forward cache without running its scripts again.
+ window.addEventListener('pageshow',e=>{
+   if(e.persisted || !readState().serviceAuthorized){
+     if(!readState().serviceAuthorized)location.replace(routes.customer);
+   }
+ });
+}
+
 function setCase(area,c){cases[area]=c;const names=area==='customer'?{accept:'Genuine customer',reject:'Different person',spoof:'Spoof attempt'}:{accept:'Correct employee',reject:'Wrong person',spoof:'Photo attack'};const x=document.getElementById(area+'Case');if(x)x.textContent='Selected: '+names[c]}
 function showModal(title,message,detail,success=true,icon=null,destination=null){modalDestination=destination;const overlay=document.getElementById('resultModal');overlay.querySelector('.modal-card').classList.toggle('fail',!success);document.getElementById('modalTitle').textContent=title;document.getElementById('modalMessage').textContent=message;document.getElementById('modalDetail').textContent=detail;document.getElementById('modalIcon').textContent=icon||(success?'✓':'✕');overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');document.getElementById('modalClose').focus()}
 function closeModal(){const modal=document.getElementById('resultModal');modal.classList.remove('open');modal.setAttribute('aria-hidden','true');if(modalDestination)nav(modalDestination)}
