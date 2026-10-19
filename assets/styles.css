@@ -158,3 +158,16 @@ button,.cta,.pill,.nav{min-height:44px}
 .upload-preview-wrap img{display:block;max-height:280px;width:100%;object-fit:contain}
 #clearCustomerUpload{margin-top:8px}
 @media(max-width:700px){.sidebar .nav-group-title{margin-top:13px}.enrollment-upload{padding:13px}.upload-heading .tag{font-size:10px}}
+
+/* V12: independently scrollable sidebar on desktop, tablet, and phones. */
+.sidebar{overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#b9d7d1 transparent;}
+.sidebar .sidefoot{position:static;bottom:auto;margin-top:22px;padding-bottom:16px;}
+@media (min-width:1025px){.sidebar{position:sticky;top:0;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;align-self:start;padding-bottom:24px;}}
+@media (max-width:1024px){.sidebar{height:100vh;height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;overscroll-behavior:contain;padding-bottom:36px;}}
+.sidebar::-webkit-scrollbar{width:7px;}
+.sidebar::-webkit-scrollbar-track{background:transparent;}
+.sidebar::-webkit-scrollbar-thumb{background:#c1d7d3;border-radius:99px;}
+.sidebar::-webkit-scrollbar-thumb:hover{background:#78ada2;}
+
+/* V13: Hide gated service links until successful demo authentication. */
+.sidebar [hidden], [data-authorized-only][hidden]{display:none!important}

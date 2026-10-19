@@ -4,7 +4,17 @@ const page=document.body.dataset.page;
 const cases={customer:'accept',attendance:'accept'};
 let modalDestination=null;
 function readState(){try{return JSON.parse(sessionStorage.getItem('facetrustDemo')||'{}')}catch{return {}}}
-function updateState(patch){sessionStorage.setItem('facetrustDemo',JSON.stringify({...readState(),...patch}))}
+function updateState(patch){sessionStorage.setItem('facetrustDemo',JSON.stringify({...readState(),...patch}));syncAuthorizedMenu()}
+// UI-only access indication: this demonstration is not a secure authorization system.
+function syncAuthorizedMenu(){
+ const enabled=readState().serviceAuthorized===true;
+ document.querySelectorAll('[data-authorized-only="customer"]').forEach(el=>{
+   el.hidden=!enabled;
+   if(!enabled){el.setAttribute('aria-hidden','true');el.setAttribute('tabindex','-1')}
+   else {el.removeAttribute('aria-hidden');el.removeAttribute('tabindex')}
+ });
+}
+syncAuthorizedMenu();
 function nav(target){if(target==='customer-service'&&!readState().serviceAuthorized){location.href=routes.customer;return}location.href=routes[target]||routes.overview}
 document.querySelectorAll('[data-go]').forEach(el=>el.addEventListener('click',()=>nav(el.dataset.go)));
 function setCase(area,c){cases[area]=c;const names=area==='customer'?{accept:'Genuine customer',reject:'Different person',spoof:'Spoof attempt'}:{accept:'Correct employee',reject:'Wrong person',spoof:'Photo attack'};const x=document.getElementById(area+'Case');if(x)x.textContent='Selected: '+names[c]}
