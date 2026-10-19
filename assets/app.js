@@ -84,10 +84,48 @@ function handleFaceLandmarks(result){if(!currentCameraStream||capturedFrame)retu
  if(stableFrames>=4 && performance.now()-lastPoseTime>450){poseStage++;lastPoseTime=performance.now();stableFrames=0;poseProgress();if(poseStage===3){capturePhotoAutomatically();return}cameraStatus('✓ Movement recorded. '+messages[poseSequence[poseStage]])}
 }
 async function processCameraFrames(){const video=cameraWidget()?.querySelector('.camera-live');while(currentCameraStream && !capturedFrame && !stoppedByUser){if(video?.readyState>=2 && faceMesh){try{await faceMesh.send({image:video})}catch(err){cameraStatus('Face tracking interrupted: '+err.message,true);break}}await new Promise(resolve=>setTimeout(resolve,75))}}
-async function startCamera(){const w=cameraWidget();if(!w)return;if(!window.isSecureContext){cameraStatus('Camera requires HTTPS or localhost. Use your Vercel HTTPS URL.',true);w.querySelector('.camera-start').hidden=false;return}if(!navigator.mediaDevices?.getUserMedia){cameraStatus('Browser camera API unavailable. Try Chrome, Edge or Safari.',true);w.querySelector('.camera-start').hidden=false;return}
+async function startCamera(){const w=cameraWidget();if(!w)return;clearCustomerUploadedImage(false);if(!window.isSecureContext){cameraStatus('Camera requires HTTPS or localhost. Use your Vercel HTTPS URL.',true);w.querySelector('.camera-start').hidden=false;return}if(!navigator.mediaDevices?.getUserMedia){cameraStatus('Browser camera API unavailable. Try Chrome, Edge or Safari.',true);w.querySelector('.camera-start').hidden=false;return}
  stoppedByUser=false;stopCamera(false);cameraStatus('Requesting camera access…');w.querySelector('.camera-start').hidden=true;
  try{const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:960},height:{ideal:720}}});currentCameraStream=stream;const video=w.querySelector('.camera-live');video.srcObject=stream;video.hidden=false;w.querySelector('.camera-placeholder').hidden=true;poseProgress();await video.play();w.querySelector('.camera-stop').disabled=false;cameraStatus('Loading face tracking…');await initializeLandmarks();if(!currentCameraStream)return;poseProgress();cameraStatus('Step 1/3 · Slowly turn your head to the RIGHT.');processCameraFrames();stream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(currentCameraStream){stopCamera();cameraStatus('Camera disconnected. Press Restart Camera to retry.',true);w.querySelector('.camera-start').hidden=false}},{once:true})
  }catch(err){stopCamera(false);const errors={NotAllowedError:'Camera access denied. Allow camera permission in site settings, then press Restart Camera.',NotFoundError:'No camera detected. Connect a webcam and try again.',NotReadableError:'Camera is busy. Close other camera applications and retry.'};cameraStatus(errors[err.name]||err.message||'Could not start camera.',true);w.querySelector('.camera-start').hidden=false;}}
 function capturePhotoAutomatically(){const w=cameraWidget(),video=w?.querySelector('.camera-live');if(!video||!currentCameraStream||!video.videoWidth)return;const canvas=w.querySelector('.camera-canvas');const scale=Math.min(1,960/video.videoWidth);canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);capturedFrame=canvas.toDataURL('image/jpeg',0.86);poseProgress();const photo=w.querySelector('.camera-photo');photo.src=capturedFrame;photo.hidden=false;stopCamera(true);w.querySelector('.camera-placeholder').hidden=true;w.querySelector('.camera-retake').hidden=false;w.querySelector('.camera-start').hidden=true;cameraStatus('✓ Head movement steps completed. Photo automatically captured. Continue with the demo verification below.');}
 function checkCapturedPhoto(){if(!cameraWidget())return true;if(capturedFrame)return true;cameraStatus('Complete all three head movements to auto-capture a photo.',true);cameraWidget().scrollIntoView({behavior:'smooth',block:'center'});return false}
 (function initCamera(){const w=cameraWidget();if(!w)return;w.querySelector('.camera-start').addEventListener('click',startCamera);w.querySelector('.camera-stop').addEventListener('click',()=>{stoppedByUser=true;stopCamera();w.querySelector('.camera-start').hidden=false;cameraStatus('Camera stopped. Press Restart Camera when ready.')});w.querySelector('.camera-retake').addEventListener('click',startCamera);window.addEventListener('pagehide',()=>{stoppedByUser=true;stopCamera()});startCamera();})();
+
+// V11: optional customer enrollment image upload. File stays in this tab; no server upload.
+function clearCustomerUploadedImage(resetCaptured=true){
+ const inp=document.getElementById('customerImageUpload');if(!inp)return;
+ const preview=document.getElementById('customerUploadPreview');
+ if(inp.dataset.uploaded==='yes' && resetCaptured)capturedFrame=null;
+ inp.dataset.uploaded='no';inp.value='';
+ document.getElementById('customerUploadPreviewWrap').hidden=true;
+ document.getElementById('clearCustomerUpload').hidden=true;
+ preview.removeAttribute('src');
+ document.getElementById('customerUploadStatus').textContent='Upload a face image, or complete the guided camera capture below.';
+ document.getElementById('customerUploadStatus').classList.remove('error');
+}
+(function initCustomerUpload(){
+ const inp=document.getElementById('customerImageUpload');if(!inp)return;
+ const status=document.getElementById('customerUploadStatus');
+ document.getElementById('clearCustomerUpload').addEventListener('click',()=>{clearCustomerUploadedImage();startCamera()});
+ inp.addEventListener('change',async()=>{
+  const file=inp.files?.[0];if(!file)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024){
+   status.textContent='Select a JPG, PNG or WebP image up to 5 MB.';status.classList.add('error');inp.value='';return;
+  }
+  try{
+   const image=await createImageBitmap(file);
+   if(image.width<160||image.height<160){image.close();throw new Error('Image is too small. Use at least 160 × 160 pixels.');}
+   const canvas=document.createElement('canvas');const scale=Math.min(1,1024/image.width,1024/image.height);
+   canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
+   canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);image.close();
+   const encoded=canvas.toDataURL('image/jpeg',0.85);
+   stopCamera(false);capturedFrame=encoded;inp.dataset.uploaded='yes';
+   document.getElementById('customerUploadPreview').src=encoded;
+   document.getElementById('customerUploadPreviewWrap').hidden=false;
+   document.getElementById('clearCustomerUpload').hidden=false;
+   const widget=cameraWidget();if(widget){widget.querySelector('.camera-placeholder').hidden=false;widget.querySelector('.camera-start').hidden=false;cameraStatus('✓ Enrollment image selected from upload. No camera capture required.');}
+   status.textContent='✓ Photo selected: '+file.name+'. Ready for demo enrollment.';status.classList.remove('error');
+  }catch(err){status.textContent=err.message||'Could not read image.';status.classList.add('error');inp.value='';}
+ });
+})();
