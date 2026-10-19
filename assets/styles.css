@@ -171,3 +171,6 @@ button,.cta,.pill,.nav{min-height:44px}
 
 /* V13: Hide gated service links until successful demo authentication. */
 .sidebar [hidden], [data-authorized-only][hidden]{display:none!important}
+
+/* V15 attendance reporting */
+.report-alert{border:1px solid #b4e0d3;background:#eaf8f2;color:#246659;padding:14px 17px;border-radius:11px;font-size:13px;margin-bottom:18px}.report-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.report-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-top:18px}.report-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}.report-buttons .cta{margin:0}.report-empty{padding:20px;color:var(--muted);text-align:center}.report-kpis strong{font-variant-numeric:tabular-nums}@media(max-width:1050px){.report-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){.report-filters{grid-template-columns:1fr}.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.report-buttons .cta{width:100%}}

@@ -1,5 +1,5 @@
 "use strict";
-const routes={overview:'/',customer:'/customer/','customer-service':'/customer-service/','customer-home':'/customer-home/','customer-enrollment':'/customer-enrollment/',enrollment:'/enrollment/',attendance:'/attendance/','workflow-home':'/workflow-home/',architecture:'/architecture/',investment:'/investment/'};
+const routes={overview:'/',customer:'/customer/','customer-service':'/customer-service/','customer-home':'/customer-home/','customer-enrollment':'/customer-enrollment/',enrollment:'/enrollment/',attendance:'/attendance/','attendance-report':'/attendance-report/','workflow-home':'/workflow-home/',architecture:'/architecture/',investment:'/investment/'};
 const page=document.body.dataset.page;
 const cases={customer:'accept',attendance:'accept'};
 let modalDestination=null;
@@ -48,7 +48,7 @@ document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.
 function verify(area){if(!checkCapturedPhoto())return;const scenario=cases[area],isCustomer=area==='customer',success=scenario==='accept',spoof=scenario==='spoof';const id=(document.getElementById(isCustomer?'customerId':'employeeId').value||'').trim()||'DEMO-ID';const msg=success?(isCustomer?'Face matches the selected customer reference. Proceed only after other required banking authorization steps.':'Employee matches the enrolled reference. Attendance recorded in this demo session only.'):spoof?'Presentation attack / liveness check failed in the simulated scenario. Refer to manual review.':'Captured face does not match the selected reference in the simulated scenario. Do not approve automatically.';
 const title=success?'VERIFIED — ACCEPTED':spoof?'LIVENESS FAILED — REJECTED':'NOT VERIFIED — REJECTED';
 if(isCustomer){if(success)updateState({serviceAuthorized:true,customerId:id,requestedService:document.getElementById('service').value});else updateState({serviceAuthorized:false})}
-else if(success){const act=document.getElementById('attendanceAction').value;const state=readState();updateState({homeWelcome:'Attendance successfully recorded (demo)',homeSummary:id+' — '+act+' • Simulated event; no HR database write.',attendanceRows:[{id,act},...(state.attendanceRows||[])].slice(0,20)})}
+else if(success){const act=document.getElementById('attendanceAction').value;const state=readState();updateState({homeWelcome:'Attendance successfully recorded (demo)',homeSummary:id+' — '+act+' • Simulated event; no HR database write.',attendanceRows:[{id,act,at:new Date().toISOString(),name:(state.enrolled||[]).find(e=>e.id.toLowerCase()===id.toLowerCase())?.name||'Demo employee'},...(state.attendanceRows||[])].slice(0,500)})}
 showModal(success&&!isCustomer?'ATTENDANCE SUCCESSFUL':title,msg,(isCustomer?'Customer: ':'Employee: ')+id+' • Liveness: '+(spoof?'Failed':'Simulated pass')+' • No live AI inference',success,spoof?'!':null,success?(isCustomer?'customer-service':'workflow-home'):null)}
 function enrollEmployee(){if(!checkCapturedPhoto())return;const id=document.getElementById('enrollId').value.trim(),name=document.getElementById('enrollName').value.trim(),department=document.getElementById('enrollDepartment').value,branch=document.getElementById('enrollBranch').value.trim();if(!id||!name||!branch){showModal('ENROLLMENT INCOMPLETE','Employee ID, Name and Branch are required.','No employee record was created.',false,'!');return}if(!document.getElementById('enrollConsent').checked){showModal('ACKNOWLEDGMENT REQUIRED','Please acknowledge the illustrative demo consent field before continuing.','No employee record was created.',false,'!');return}const st=readState(),list=st.enrolled||[];if(id.toUpperCase()==='EMP-00142'||list.some(x=>x.id.toUpperCase()===id.toUpperCase())){showModal('DUPLICATE EMPLOYEE ID','This employee ID already exists in the simulated enrollment list.','Try a different employee ID.',false,'!');return}updateState({enrolled:[{id,name,department,branch},...list].slice(0,50),homeWelcome:'Employee enrollment successful (demo)',homeSummary:name+' ('+id+') • '+branch+' • No biometric template generated.',lastEmployee:id});showModal('ENROLLMENT SUCCESSFUL','The employee profile was added to this demonstration session.','Employee: '+id+' • '+name+' • '+branch+' • Simulated; no face template created.',true,'✓','workflow-home')}
 function enrollCustomer(){
@@ -161,4 +161,30 @@ function clearCustomerUploadedImage(resetCaptured=true){
    status.textContent='✓ Photo selected: '+file.name+'. Ready for demo enrollment.';status.classList.remove('error');
   }catch(err){status.textContent=err.message||'Could not read image.';status.classList.add('error');inp.value='';}
  });
+})();
+
+// Session-only attendance reporting. CSV export contains filtered demonstration events.
+(function initAttendanceReport(){
+ if(page!=='attendance-report')return;
+ const get=id=>document.getElementById(id);
+ const inputs=['reportFrom','reportTo','reportEmployee','reportAction'].map(get);
+ const formatDate=d=>{const a=d.getFullYear(),b=String(d.getMonth()+1).padStart(2,'0'),c=String(d.getDate()).padStart(2,'0');return `${a}-${b}-${c}`};
+ const sample=()=>{const now=new Date(),yesterday=new Date(now.getTime()-86400000);return [{id:'EMP-00142',name:'Sample employee',act:'Check In',at:formatDate(now)+'T09:00:00',sample:true},{id:'EMP-00138',name:'Sample employee',act:'Check Out',at:formatDate(yesterday)+'T17:20:00',sample:true}]};
+ let filtered=[];
+ function records(){return [...(readState().attendanceRows||[]),...sample()].map(x=>({...x,at:x.at||'',name:x.name||'Demo employee'}))}
+ function draw(){
+  const [from,to,id,action]=inputs.map(x=>x.value),terms=id.trim().toLowerCase();
+  filtered=records().filter(r=>{const day=r.at.slice(0,10);return (!from||day>=from)&&(!to||day<=to)&&(!terms||r.id.toLowerCase().includes(terms))&&(action==='all'||r.act===action)});
+  const body=get('reportRows');body.replaceChildren();
+  for(const row of filtered){const tr=document.createElement('tr');const vals=[row.at.slice(0,10)||'—',row.at.slice(11,19)||'—',row.id,row.name,row.act,row.sample?'Illustrative sample':'Simulated event'];vals.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});body.append(tr)}
+  get('reportEmpty').hidden=filtered.length!==0;
+  get('reportTotal').textContent=filtered.length;
+  get('reportCheckins').textContent=filtered.filter(x=>x.act==='Check In').length;
+  get('reportCheckouts').textContent=filtered.filter(x=>x.act==='Check Out').length;
+  get('reportPeople').textContent=new Set(filtered.map(x=>x.id)).size;
+ }
+ inputs.forEach(x=>x.addEventListener('input',draw));
+ get('reportReset').addEventListener('click',()=>{inputs.forEach((x,i)=>x.value=i===3?'all':'');draw()});
+ get('reportExport').addEventListener('click',()=>{const rows=[['Date','Time','Employee ID','Name','Action','Record Type'],...filtered.map(x=>[x.at.slice(0,10),x.at.slice(11,19),x.id,x.name,x.act,x.sample?'Illustrative sample':'Simulated event'])];const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""').replace(/^[=+@\-]/,'\'')+'"').join(',')).join('\r\n');const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='facetrust-attendance-demo.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+ draw();
 })();

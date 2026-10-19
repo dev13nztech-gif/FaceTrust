@@ -33,3 +33,11 @@ Sidebar scrolls independently on desktop using a sticky full-height container, a
 - Browser Back/Forward cached service pages redirect to `/customer/` unless there is a fresh accepted verification.
 - A successful customer verification is necessary for each new visit to the service page.
 - This is a front-end demonstration only, not secure banking authentication or authorization.
+
+
+## V15 Attendance Report
+- New `/attendance-report/` responsive route under Employee Services and Employee Dashboard.
+- Date range, employee ID and action filters, event summaries and CSV export.
+- Successful attendance simulations write date/time to sessionStorage. Previous events without date remain visible but are labeled appropriately.
+- Two illustrative sample rows clearly labeled as sample, not real attendance.
+- No backend; CSV export and records are demo-only.
