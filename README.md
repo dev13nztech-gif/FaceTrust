@@ -41,3 +41,6 @@ On Customer Authentication, Employee Enrollment and Employee Attendance, the cam
 
 ## Version 8 — Animated Camera Guidance
 When the camera begins, a glowing face oval, moving scan line and large animated direction cue appear over the live preview. The cue automatically moves through RIGHT → LEFT → STRAIGHT based on the existing landmark detector, highlighting completed steps. Capture occurs automatically after the third validated pose. The device's camera permission still requires browser approval. Camera detection is only a demo heuristic, not production-grade liveness security. No server-side face recognition is performed. Animation respects prefers-reduced-motion.
+
+## V9 — Corrected Head Direction
+The pose classifier's LEFT/RIGHT yaw mapping is flipped to align the on-screen movement guidance with the selfie mirror view. RIGHT now requires the corresponding real-world head turn, not the opposite direction. Applied to Customer Authentication, Employee Enrollment, and Attendance through shared `assets/app.js`. Browser hardware validation remains necessary.

@@ -63,7 +63,9 @@ function handleFaceLandmarks(result){if(!currentCameraStream||capturedFrame)retu
  const leftWidth=Math.hypot(nose.x-left.x,nose.y-left.y),rightWidth=Math.hypot(nose.x-right.x,nose.y-right.y);
  const yaw=(leftWidth-rightWidth)/(leftWidth+rightWidth);const faceWidth=Math.abs(right.x-left.x),faceHeight=Math.abs(chin.y-forehead.y);
  if(faceWidth<0.18||faceHeight<0.20){stableFrames=0;cameraStatus('Move closer and keep your face fully inside the frame.');return}
- const expected=poseSequence[poseStage];const classified=yaw>0.15?'right':yaw< -0.15?'left':Math.abs(yaw)<0.09?'center':'transition';
+ const expected=poseSequence[poseStage];// MediaPipe landmarks use the unmirrored video frame, while our selfie preview is mirrored.
+ // Flip the yaw mapping so RIGHT/LEFT mean the user's actual head-turn direction.
+ const classified=yaw< -0.15?'right':yaw>0.15?'left':Math.abs(yaw)<0.09?'center':'transition';
  if(classified===expected){stableFrames++;}else stableFrames=0;
  const messages={right:'Step 1/3 · Slowly turn your head to the RIGHT.',left:'Step 2/3 · Now turn your head to the LEFT.',center:'Step 3/3 · Look STRAIGHT at the camera.'};
  cameraStatus(messages[expected]+(stableFrames>1?' Hold still…':''));
