@@ -106,3 +106,9 @@ button,.cta,.pill,.nav{min-height:44px}
 .camera-status{font-size:12px;line-height:1.55;color:#526b6d;margin:9px 0 2px}
 .camera-status.camera-error{color:#b42335;font-weight:600}
 @media(max-width:480px){.camera-actions{display:grid;grid-template-columns:1fr 1fr}.camera-btn{padding:10px 6px;font-size:12px}}
+
+/* Automatic head-pose challenge */
+.pose-guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.pose-step{border:1px solid #dae5e2;border-radius:9px;background:#f6f9f8;color:#627572;text-align:center;padding:10px 5px;font-size:12px;font-weight:650}
+.pose-step.active{border-color:#0d9982;background:#e8f7f2;color:#086e5d}.pose-step.done{background:#d7f4e8;border-color:#9ad8be;color:#075943}
+@media(max-width:440px){.pose-guide{gap:5px}.pose-step{font-size:10px;padding:9px 3px}}

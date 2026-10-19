@@ -33,3 +33,7 @@ Test locally: `python -m http.server 3000`, then open `http://localhost:3000`. T
 - Real camera preview and local frame capture; verification, liveness and enrollment remain **simulated**. Photos are not uploaded or persisted in session storage.
 - Camera access requires secure origin (`https://` on Vercel, or `http://localhost` locally); opening `index.html` directly or a LAN HTTP IP may prevent access.
 - To run: `python -m http.server 3000` from the website root, open `http://localhost:3000`.
+
+## V7: Camera auto capture
+
+On Customer Authentication, Employee Enrollment and Employee Attendance, the camera requests permission automatically on page load. One face must turn right, left and center; then a still image is automatically captured without a dedicated capture button. Uses MediaPipe Face Mesh loaded from jsDelivr CDN (requires internet and HTTPS/localhost). If camera access is denied the user must enable permission and tap Restart Camera. Head movement tracking is an interactive demo and **is not secure presentation attack detection or real authentication**. Verification scenario decisions remain explicitly simulated. On low-power phones pose thresholds may require tuning; test the turn direction on the actual mirrored preview. No camera image is uploaded.
