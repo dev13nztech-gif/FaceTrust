@@ -112,3 +112,29 @@ button,.cta,.pill,.nav{min-height:44px}
 .pose-step{border:1px solid #dae5e2;border-radius:9px;background:#f6f9f8;color:#627572;text-align:center;padding:10px 5px;font-size:12px;font-weight:650}
 .pose-step.active{border-color:#0d9982;background:#e8f7f2;color:#086e5d}.pose-step.done{background:#d7f4e8;border-color:#9ad8be;color:#075943}
 @media(max-width:440px){.pose-guide{gap:5px}.pose-step{font-size:10px;padding:9px 3px}}
+
+/* Animated, camera-aligned three-step pose guide */
+.camera-stage{min-height:280px;background:#102332}
+.pose-overlay{position:absolute;inset:0;z-index:4;pointer-events:none;color:#fff;overflow:hidden;display:flex;justify-content:center;align-items:center;flex-direction:column;text-shadow:0 2px 8px #001c27b8;background:linear-gradient(180deg,#051a2c30 0%,transparent 32%,transparent 60%,#051a2c8a 100%)}
+.camera-stage.is-captured .pose-overlay{display:none}
+.pose-oval{position:absolute;width:min(46%,200px);height:76%;max-height:238px;border:2px solid #7df3d1b8;border-radius:46% 46% 43% 43%;box-shadow:0 0 0 500px #021a221f,0 0 24px #35efc452;animation:posePulse 2.1s ease-in-out infinite}
+.pose-scanline{position:absolute;left:24%;right:24%;height:2px;top:25%;z-index:2;background:linear-gradient(90deg,transparent,#6cf7d9,transparent);box-shadow:0 0 12px #7bffda;animation:poseScan 2.4s ease-in-out infinite}
+.pose-direction{z-index:5;position:absolute;top:30%;display:flex;flex-direction:column;align-items:center;gap:3px}
+.pose-direction-icon{font-size:72px;font-weight:800;line-height:1;color:#80f4d4;filter:drop-shadow(0 2px 8px #003a37);animation:poseRight 1.25s ease-in-out infinite}
+.pose-direction-word{font-size:12px;letter-spacing:2px;font-weight:900;background:#07322fa8;border:1px solid #ffffff70;border-radius:20px;padding:5px 12px}
+.pose-bottom-label{position:absolute;bottom:12px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;z-index:5}
+.pose-counter{background:#d7fff0;color:#08533c;padding:5px 9px;border-radius:18px;text-shadow:none}
+.pose-indicator{background:#062831a3;border-radius:15px;padding:5px 8px}
+.camera-stage[data-pose-state="left"] .pose-direction-icon{animation-name:poseLeft}
+.camera-stage[data-pose-state="center"] .pose-direction-icon{animation-name:poseCenter;font-size:62px}
+.camera-stage[data-pose-state="complete"] .pose-direction-icon{animation:none;color:#a4ffdb}
+.pose-step.done::before{content:'✓ ';font-weight:900}
+.pose-step.active{box-shadow:0 0 0 2px #33b59b21;animation:stepGlow 1.6s ease-in-out infinite}
+@keyframes posePulse{50%{transform:scale(1.035);border-color:#b2ffe7;box-shadow:0 0 0 500px #021a221a,0 0 32px #2befc676}}
+@keyframes poseScan{0%,100%{top:22%;opacity:.3}50%{top:79%;opacity:1}}
+@keyframes poseRight{0%,100%{transform:translateX(-19px) rotate(-9deg)}50%{transform:translateX(19px) rotate(9deg)}}
+@keyframes poseLeft{0%,100%{transform:translateX(19px) rotate(9deg)}50%{transform:translateX(-19px) rotate(-9deg)}}
+@keyframes poseCenter{0%,100%{transform:scale(.91);opacity:.75}50%{transform:scale(1.09);opacity:1}}
+@keyframes stepGlow{50%{filter:brightness(1.08)}}
+@media(max-width:480px){.camera-stage{min-height:260px}.pose-direction-icon{font-size:58px}.pose-bottom-label{font-size:10px}.pose-oval{width:55%}}
+@media(prefers-reduced-motion:reduce){.pose-oval,.pose-scanline,.pose-direction-icon,.pose-step.active{animation:none}}

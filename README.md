@@ -37,3 +37,7 @@ Test locally: `python -m http.server 3000`, then open `http://localhost:3000`. T
 ## V7: Camera auto capture
 
 On Customer Authentication, Employee Enrollment and Employee Attendance, the camera requests permission automatically on page load. One face must turn right, left and center; then a still image is automatically captured without a dedicated capture button. Uses MediaPipe Face Mesh loaded from jsDelivr CDN (requires internet and HTTPS/localhost). If camera access is denied the user must enable permission and tap Restart Camera. Head movement tracking is an interactive demo and **is not secure presentation attack detection or real authentication**. Verification scenario decisions remain explicitly simulated. On low-power phones pose thresholds may require tuning; test the turn direction on the actual mirrored preview. No camera image is uploaded.
+
+
+## Version 8 — Animated Camera Guidance
+When the camera begins, a glowing face oval, moving scan line and large animated direction cue appear over the live preview. The cue automatically moves through RIGHT → LEFT → STRAIGHT based on the existing landmark detector, highlighting completed steps. Capture occurs automatically after the third validated pose. The device's camera permission still requires browser approval. Camera detection is only a demo heuristic, not production-grade liveness security. No server-side face recognition is performed. Animation respects prefers-reduced-motion.
