@@ -91,3 +91,18 @@ button,.cta,.pill,.nav{min-height:44px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 @media print{.menu-toggle,.mobile-nav-backdrop{display:none!important}.sidebar{display:none!important}.topbar{display:none!important}body{overflow:visible}.content{padding:0}}
+
+/* Camera capture component */
+.camera-stage{position:relative;overflow:hidden;isolation:isolate}
+.camera-stage:after{pointer-events:none}
+.camera-live,.camera-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;transform:scaleX(-1)}
+.camera-placeholder{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:#66798a}
+.camera-placeholder[hidden],.camera-live[hidden],.camera-photo[hidden]{display:none!important}
+.camera-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.camera-btn{border:1px solid #b8d0d0;border-radius:10px;background:#f4faf8;color:#123c36;padding:10px 14px;font:inherit;font-size:13px;font-weight:650;cursor:pointer;min-height:43px}
+.camera-btn:hover:not(:disabled){background:#ddf3eb}
+.camera-btn:disabled{opacity:.43;cursor:not-allowed}
+.camera-btn[hidden]{display:none!important}
+.camera-status{font-size:12px;line-height:1.55;color:#526b6d;margin:9px 0 2px}
+.camera-status.camera-error{color:#b42335;font-weight:600}
+@media(max-width:480px){.camera-actions{display:grid;grid-template-columns:1fr 1fr}.camera-btn{padding:10px 6px;font-size:12px}}

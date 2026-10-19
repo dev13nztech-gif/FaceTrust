@@ -25,3 +25,11 @@ Local preview: `python -m http.server 8000` in project directory, then visit htt
 - All eight routes retain their existing modal redirects and simulation behavior.
 
 Test locally: `python -m http.server 3000`, then open `http://localhost:3000`. Try Chrome DevTools device toolbar at widths 320, 375, 768, 1024, 1440.
+
+
+## V6 camera capture update
+- Camera is enabled on `/customer/`, `/attendance/`, and `/enrollment/`.
+- Click **Open Camera**, approve browser permission, then **Capture Photo**. Retake and Stop Camera are supported.
+- Real camera preview and local frame capture; verification, liveness and enrollment remain **simulated**. Photos are not uploaded or persisted in session storage.
+- Camera access requires secure origin (`https://` on Vercel, or `http://localhost` locally); opening `index.html` directly or a LAN HTTP IP may prevent access.
+- To run: `python -m http.server 3000` from the website root, open `http://localhost:3000`.
