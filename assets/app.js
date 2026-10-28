@@ -45,21 +45,49 @@ function showModal(title,message,detail,success=true,icon=null,destination=null)
 function closeModal(){const modal=document.getElementById('resultModal');modal.classList.remove('open');modal.setAttribute('aria-hidden','true');if(modalDestination)nav(modalDestination)}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('resultModal').classList.contains('open'))closeModal()});
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeModal()});
-function verify(area){if(!checkCapturedPhoto())return;const scenario=cases[area],isCustomer=area==='customer',success=scenario==='accept',spoof=scenario==='spoof';const id=(document.getElementById(isCustomer?'customerId':'employeeId').value||'').trim()||'DEMO-ID';const msg=success?(isCustomer?'Face matches the selected customer reference. Proceed only after other required banking authorization steps.':'Employee matches the enrolled reference. Attendance recorded in this demo session only.'):spoof?'Presentation attack / liveness check failed in the simulated scenario. Refer to manual review.':'Captured face does not match the selected reference in the simulated scenario. Do not approve automatically.';
-const title=success?'VERIFIED — ACCEPTED':spoof?'LIVENESS FAILED — REJECTED':'NOT VERIFIED — REJECTED';
-if(isCustomer){if(success)updateState({serviceAuthorized:true,customerId:id,requestedService:document.getElementById('service').value});else updateState({serviceAuthorized:false})}
-else if(success){const act=document.getElementById('attendanceAction').value;const state=readState();updateState({homeWelcome:'Attendance successfully recorded (demo)',homeSummary:id+' — '+act+' • Simulated event; no HR database write.',attendanceRows:[{id,act,at:new Date().toISOString(),name:(state.enrolled||[]).find(e=>e.id.toLowerCase()===id.toLowerCase())?.name||'Demo employee'},...(state.attendanceRows||[])].slice(0,500)})}
-showModal(success&&!isCustomer?'ATTENDANCE SUCCESSFUL':title,msg,(isCustomer?'Customer: ':'Employee: ')+id+' • Liveness: '+(spoof?'Failed':'Simulated pass')+' • No live AI inference',success,spoof?'!':null,success?(isCustomer?'customer-service':'workflow-home'):null)}
-function enrollEmployee(){if(!checkCapturedPhoto())return;const id=document.getElementById('enrollId').value.trim(),name=document.getElementById('enrollName').value.trim(),department=document.getElementById('enrollDepartment').value,branch=document.getElementById('enrollBranch').value.trim();if(!id||!name||!branch){showModal('ENROLLMENT INCOMPLETE','Employee ID, Name and Branch are required.','No employee record was created.',false,'!');return}if(!document.getElementById('enrollConsent').checked){showModal('ACKNOWLEDGMENT REQUIRED','Please acknowledge the illustrative demo consent field before continuing.','No employee record was created.',false,'!');return}const st=readState(),list=st.enrolled||[];if(id.toUpperCase()==='EMP-00142'||list.some(x=>x.id.toUpperCase()===id.toUpperCase())){showModal('DUPLICATE EMPLOYEE ID','This employee ID already exists in the simulated enrollment list.','Try a different employee ID.',false,'!');return}updateState({enrolled:[{id,name,department,branch},...list].slice(0,50),homeWelcome:'Employee enrollment successful (demo)',homeSummary:name+' ('+id+') • '+branch+' • No biometric template generated.',lastEmployee:id});showModal('ENROLLMENT SUCCESSFUL','The employee profile was added to this demonstration session.','Employee: '+id+' • '+name+' • '+branch+' • Simulated; no face template created.',true,'✓','workflow-home')}
-function enrollCustomer(){
+// LOCAL FMS INTEGRATION: real embedding generation + similarity. Local demo ONLY.
+const FMS_API='http://127.0.0.1:8001/demo';
+function frameToBlob(){
+ if(!capturedFrame)throw new Error('Capture a face image first.');
+ const [info,base64]=capturedFrame.split(',');
+ const binary=atob(base64),bytes=new Uint8Array(binary.length);
+ for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+ return new Blob([bytes],{type:'image/jpeg'});
+}
+async function sendFms(path,fields){
+ const body=new FormData();Object.entries(fields).forEach(([k,v])=>body.append(k,v));
+ const res=await fetch(FMS_API+path,{method:'POST',body});
+ let data;try{data=await res.json()}catch{throw new Error('FMS returned an invalid response');}
+ if(!res.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));
+ return data;
+}
+async function verify(area){
  if(!checkCapturedPhoto())return;
- const id=document.getElementById('customerEnrollId').value.trim(), name=document.getElementById('customerEnrollName').value.trim(),branch=document.getElementById('customerEnrollBranch').value.trim();
- if(!id||!name||!branch){showModal('ENROLLMENT INCOMPLETE','Customer ID, name and branch are required.','No demo record created.',false,'!');return}
- if(!document.getElementById('customerEnrollConsent').checked){showModal('ACKNOWLEDGMENT REQUIRED','Acknowledge the demo consent field to continue.','No demo record created.',false,'!');return}
- const records=readState().customers||[];
- if(records.some(v=>v.id.toLowerCase()===id.toLowerCase())){showModal('DUPLICATE CUSTOMER ID','This demo customer ID is already registered.','Try another ID.',false,'!');return}
- updateState({customers:[{id,name,branch},...records].slice(0,100),customerHubTitle:'Customer enrollment successful (demo)',customerHubSummary:name+' • '+id+' • '+branch+' • No biometric template created.'});
- showModal('CUSTOMER ENROLLMENT SUCCESSFUL','The illustrative customer profile is enrolled in this browser session.','Customer: '+id+' • '+name+' • Simulated; no biometric template created.',true,'✓','customer-home');
+ const isCustomer=area==='customer',id=(document.getElementById(isCustomer?'customerId':'employeeId').value||'').trim();
+ if(!id){showModal('ID REQUIRED','Please enter the enrolled ID.','',false);return}
+ // Test-only: liveness disabled for static-photo enrollment/matching. Not safe for deployment.
+ try{
+  const act=isCustomer?'check-in':(document.getElementById('attendanceAction').value==='Check Out'?'check-out':'check-in');
+  const data=await sendFms('/verify',{kind:isCustomer?'customer':'employee',subject_id:id,image:frameToBlob(),threshold:'0.5',check_liveness:'false',action:act});
+  const success=data.verified===true,detail='Similarity: '+data.similarity+' | threshold: '+data.threshold+' | Live FMS API (liveness disabled)';
+  if(isCustomer){updateState({serviceAuthorized:success,customerId:id,requestedService:document.getElementById('service').value});}
+  else if(success){const st=readState();updateState({homeWelcome:'Attendance recorded in local FMS demo database',homeSummary:id+' — '+act+' • Actual AI match',attendanceRows:[{id,act,at:new Date().toISOString(),name:data.name},...(st.attendanceRows||[])].slice(0,500)});}
+  showModal(success?(isCustomer?'VERIFIED — ACCEPTED':'ATTENDANCE RECORDED'):'NOT VERIFIED — REJECTED',success?'FMS matched the captured face to the enrolled ID.':'FMS did not match this face to the enrolled ID.',detail,success,success?'✓':'✕',success?(isCustomer?'customer-service':'workflow-home'):null);
+ }catch(e){if(isCustomer)updateState({serviceAuthorized:false});showModal('FMS API ERROR','Could not complete the real verification.',e.message,false,'!')}
+}
+async function enrollEmployee(){
+ if(!checkCapturedPhoto())return;
+ const id=document.getElementById('enrollId').value.trim(),name=document.getElementById('enrollName').value.trim(),department=document.getElementById('enrollDepartment').value,branch=document.getElementById('enrollBranch').value.trim();
+ if(!id||!name||!branch||!document.getElementById('enrollConsent').checked){showModal('ENROLLMENT INCOMPLETE','Enter ID, name, branch and acknowledge demo consent.','',false);return}
+ try{const data=await sendFms('/enroll',{kind:'employee',subject_id:id,name,branch,image:frameToBlob()});const st=readState();updateState({enrolled:[{id,name,department,branch},...(st.enrolled||[])].slice(0,50),lastEmployee:id,homeWelcome:'Employee face enrolled in local FMS',homeSummary:id+' • '+data.embedding_dimensions+'-dimension embedding stored in local SQLite'});showModal('ENROLLMENT SUCCESSFUL','FMS generated an embedding and saved the profile.','Employee: '+id+' • Local demo SQLite',true,'✓','workflow-home')}
+ catch(e){showModal('ENROLLMENT ERROR','FMS could not enroll the employee.',e.message,false,'!')}
+}
+async function enrollCustomer(){
+ if(!checkCapturedPhoto())return;
+ const id=document.getElementById('customerEnrollId').value.trim(),name=document.getElementById('customerEnrollName').value.trim(),branch=document.getElementById('customerEnrollBranch').value.trim();
+ if(!id||!name||!branch||!document.getElementById('customerEnrollConsent').checked){showModal('ENROLLMENT INCOMPLETE','Enter ID, name, branch and acknowledge demo consent.','',false);return}
+ try{const data=await sendFms('/enroll',{kind:'customer',subject_id:id,name,branch,image:frameToBlob()});const st=readState();updateState({customers:[{id,name,branch},...(st.customers||[])].slice(0,100),customerHubTitle:'Customer enrolled in local FMS',customerHubSummary:id+' • '+data.embedding_dimensions+'-dimension face embedding stored in SQLite'});showModal('ENROLLMENT SUCCESSFUL','FMS generated a real face embedding.','Customer: '+id+' • Local demo SQLite',true,'✓','customer-home')}
+ catch(e){showModal('ENROLLMENT ERROR','FMS could not enroll the customer.',e.message,false,'!')}
 }
 function demoServiceAction(){showModal('SERVICE DEMONSTRATION','This is a simulated banking service screen. Actual account access and financial transactions require the bank’s separate authorization controls.','No real transaction was initiated.',true,'ℹ',null)}
 (function hydrate(){const st=readState();if(page==='customer-service'){if(!st.serviceAuthorized){location.replace(routes.customer);return}const id=st.customerId||'DEMO-ID',service=st.requestedService||'Cash Withdrawal';document.getElementById('serviceWelcome').textContent='Identity accepted — '+id;document.getElementById('serviceContext').textContent='Requested service: '+service;document.getElementById('chosenService').textContent=service;document.getElementById('serviceIdentity').textContent='Customer ID: '+id;}
