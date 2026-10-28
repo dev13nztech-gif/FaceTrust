@@ -1,66 +1,94 @@
-"""Local demo only: SQLite identity store. NOT bank production authorization."""
-import json
-import sqlite3
-from pathlib import Path
+"""Local-only FaceTrust demo with Supabase storage. Do not expose to untrusted networks."""
+import os
+from functools import lru_cache
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from supabase import create_client
 from app.core.gpu import run_on_gpu
 from app.utils.image_decode import decode_bytes_to_bgr
 from app.utils.embed_faces import embed
-from app.utils.ensure_live_face import ensure_live_face
 from app.services.match_embed_img import _match_sync
 
-router = APIRouter(prefix="/demo", tags=["Local FaceTrust Integration"])
-DB = Path(__file__).resolve().parents[2] / "facetrust_local_demo.sqlite3"
+router = APIRouter(prefix="/demo", tags=["FaceTrust Supabase Integration"])
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-def connect():
-    con = sqlite3.connect(DB, timeout=10)
-    con.execute("CREATE TABLE IF NOT EXISTS subjects (kind TEXT NOT NULL, subject_id TEXT NOT NULL, name TEXT NOT NULL, branch TEXT NOT NULL, embedding TEXT NOT NULL, PRIMARY KEY(kind, subject_id))")
-    con.execute("CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, subject_id TEXT NOT NULL, action TEXT NOT NULL, at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)")
-    return con
+@lru_cache(maxsize=1)
+def db():
+    url = os.getenv("SUPABASE_URL", "").strip()
+    key = os.getenv("SUPABASE_SECRET_KEY", "").strip()
+    if not url or not key:
+        raise HTTPException(503, "Set SUPABASE_URL and SUPABASE_SECRET_KEY in backend .env")
+    return create_client(url, key)
 
 async def read_image(image):
-    raw=await image.read(MAX_IMAGE_BYTES+1)
-    if not raw or len(raw)>MAX_IMAGE_BYTES:
+    raw = await image.read(MAX_IMAGE_BYTES + 1)
+    if not raw or len(raw) > MAX_IMAGE_BYTES:
         raise HTTPException(400, "Image is empty or larger than 5 MB")
     return raw
 
 def generate(raw):
-    img=decode_bytes_to_bgr(raw)
-    # This demo enrollment does not claim liveness; uploaded files are allowed.
-    return embed(img,1)[0].tolist()
+    img = decode_bytes_to_bgr(raw)
+    return embed(img, 1)[0].tolist()
 
-@router.post('/enroll')
+@router.get("/db-status")
+def db_status():
+    try:
+        db().table("fms_enrollments").select("id").limit(1).execute()
+        return {"connected": True, "database": "Supabase", "table": "fms_enrollments"}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "Supabase connection or table permission failed; check backend logs")
+
+@router.post("/enroll")
 async def enroll(kind: str=Form(...), subject_id: str=Form(...), name: str=Form(...), branch: str=Form(...), image: UploadFile=File(...)):
-    if kind not in ('customer','employee'):raise HTTPException(400,'Invalid kind')
-    subject_id=subject_id.strip();name=name.strip();branch=branch.strip()
-    if not subject_id or not name or not branch or len(subject_id)>100:raise HTTPException(400,'Invalid profile fields')
-    raw=await read_image(image)
-    vector=await run_on_gpu(generate,raw)
-    with connect() as con:
-        if con.execute('SELECT 1 FROM subjects WHERE kind=? AND subject_id=?',(kind,subject_id)).fetchone():
-            raise HTTPException(409,'ID already enrolled; use another ID')
-        con.execute('INSERT INTO subjects(kind,subject_id,name,branch,embedding) VALUES(?,?,?,?,?)',(kind,subject_id,name,branch,json.dumps(vector)))
-    return {'saved':True,'kind':kind,'subject_id':subject_id,'embedding_dimensions':len(vector),'mode':'LOCAL_DEMO'}
+    if kind not in ("customer", "employee"):
+        raise HTTPException(400, "Invalid kind")
+    subject_id, name, branch = subject_id.strip(), name.strip(), branch.strip()
+    if not subject_id or not name or not branch or len(subject_id)>100:
+        raise HTTPException(400, "Invalid profile fields")
+    vector = await run_on_gpu(generate, await read_image(image))
+    payload = {"person_type": kind, "person_id": subject_id, "full_name": name, "branch": branch,
+               "face_embedding": "[" + ",".join(str(float(x)) for x in vector) + "]", "model_name": "buffalo_l"}
+    try:
+        exists = db().table("fms_enrollments").select("id").eq("person_type",kind).eq("person_id",subject_id).limit(1).execute().data
+        if exists:
+            raise HTTPException(409, "ID already enrolled")
+        db().table("fms_enrollments").insert(payload).execute()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Avoid returning database credentials or internal exception detail.
+        raise HTTPException(503, "Supabase enrollment failed; check backend logs") from exc
+    return {"saved": True, "kind": kind, "subject_id": subject_id, "embedding_dimensions": len(vector), "storage": "SUPABASE"}
 
-@router.post('/verify')
-async def verify(kind: str=Form(...), subject_id: str=Form(...), image: UploadFile=File(...), threshold: float=Form(0.5), check_liveness: bool=Form(False), action: str=Form('check-in')):
-    if kind not in ('customer','employee'):raise HTTPException(400,'Invalid kind')
-    if not 0.0 < threshold < 1.0:raise HTTPException(400,'Invalid threshold')
-    subject_id=subject_id.strip()
-    with connect() as con:
-        row=con.execute('SELECT name,embedding FROM subjects WHERE kind=? AND subject_id=?',(kind,subject_id)).fetchone()
-    if row is None:raise HTTPException(404,'ID not enrolled; enroll first')
-    raw=await read_image(image)
-    result=await run_on_gpu(_match_sync,raw,row[1],threshold,check_liveness)
-    if kind=='employee' and result['verified']:
-        if action not in ('check-in','check-out'):raise HTTPException(400,'Invalid attendance action')
-        with connect() as con:
-            con.execute('INSERT INTO attendance(subject_id,action) VALUES(?,?)',(subject_id,action))
-    return {**result,'kind':kind,'subject_id':subject_id,'name':row[0],'mode':'LOCAL_DEMO','attendance_saved':kind=='employee' and result['verified']}
+@router.post("/verify")
+async def verify(kind: str=Form(...), subject_id: str=Form(...), image: UploadFile=File(...), threshold: float=Form(0.5), check_liveness: bool=Form(False), action: str=Form("check-in")):
+    if kind not in ("customer", "employee"):
+        raise HTTPException(400, "Invalid kind")
+    if not 0.0 < threshold < 1.0:
+        raise HTTPException(400, "Invalid threshold")
+    if action not in ("check-in", "check-out"):
+        raise HTTPException(400, "Invalid attendance action")
+    try:
+        rows = db().table("fms_enrollments").select("full_name,face_embedding").eq("person_type",kind).eq("person_id",subject_id.strip()).limit(1).execute().data
+    except Exception as exc:
+        raise HTTPException(503, "Supabase lookup failed; check backend logs") from exc
+    if not rows:
+        raise HTTPException(404, "ID not enrolled; enroll first")
+    result = await run_on_gpu(_match_sync, await read_image(image), rows[0]["face_embedding"], threshold, check_liveness)
+    saved = False
+    if kind == "employee" and result["verified"]:
+        try:
+            db().table("fms_attendance").insert({"employee_id":subject_id.strip(),"event_type":action,"similarity":result["similarity"]}).execute()
+            saved = True
+        except Exception as exc:
+            raise HTTPException(503, "Matching passed but attendance save failed; check backend logs") from exc
+    return {**result, "kind":kind, "subject_id":subject_id.strip(), "name":rows[0]["full_name"], "storage":"SUPABASE", "attendance_saved":saved}
 
-@router.get('/attendance')
+@router.get("/attendance")
 def attendance():
-    with connect() as con:
-        rows=con.execute('SELECT a.subject_id,s.name,a.action,a.at FROM attendance a LEFT JOIN subjects s ON s.subject_id=a.subject_id AND s.kind="employee" ORDER BY a.id DESC LIMIT 500').fetchall()
-    return [{'id':r[0],'name':r[1],'action':r[2],'at':r[3]} for r in rows]
+    try:
+        data = db().table("fms_attendance").select("employee_id,event_type,created_at,similarity").order("created_at",desc=True).limit(500).execute().data
+        return [{"id":r["employee_id"],"action":r["event_type"],"at":r["created_at"],"similarity":r["similarity"]} for r in data]
+    except Exception as exc:
+        raise HTTPException(503, "Supabase attendance query failed; check backend logs") from exc

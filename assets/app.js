@@ -71,7 +71,7 @@ async function verify(area){
   const data=await sendFms('/verify',{kind:isCustomer?'customer':'employee',subject_id:id,image:frameToBlob(),threshold:'0.5',check_liveness:'false',action:act});
   const success=data.verified===true,detail='Similarity: '+data.similarity+' | threshold: '+data.threshold+' | Live FMS API (liveness disabled)';
   if(isCustomer){updateState({serviceAuthorized:success,customerId:id,requestedService:document.getElementById('service').value});}
-  else if(success){const st=readState();updateState({homeWelcome:'Attendance recorded in local FMS demo database',homeSummary:id+' — '+act+' • Actual AI match',attendanceRows:[{id,act,at:new Date().toISOString(),name:data.name},...(st.attendanceRows||[])].slice(0,500)});}
+  else if(success){const st=readState();updateState({homeWelcome:'Attendance recorded in Supabase',homeSummary:id+' — '+act+' • Actual AI match',attendanceRows:[{id,act,at:new Date().toISOString(),name:data.name},...(st.attendanceRows||[])].slice(0,500)});}
   showModal(success?(isCustomer?'VERIFIED — ACCEPTED':'ATTENDANCE RECORDED'):'NOT VERIFIED — REJECTED',success?'FMS matched the captured face to the enrolled ID.':'FMS did not match this face to the enrolled ID.',detail,success,success?'✓':'✕',success?(isCustomer?'customer-service':'workflow-home'):null);
  }catch(e){if(isCustomer)updateState({serviceAuthorized:false});showModal('FMS API ERROR','Could not complete the real verification.',e.message,false,'!')}
 }
@@ -79,14 +79,14 @@ async function enrollEmployee(){
  if(!checkCapturedPhoto())return;
  const id=document.getElementById('enrollId').value.trim(),name=document.getElementById('enrollName').value.trim(),department=document.getElementById('enrollDepartment').value,branch=document.getElementById('enrollBranch').value.trim();
  if(!id||!name||!branch||!document.getElementById('enrollConsent').checked){showModal('ENROLLMENT INCOMPLETE','Enter ID, name, branch and acknowledge demo consent.','',false);return}
- try{const data=await sendFms('/enroll',{kind:'employee',subject_id:id,name,branch,image:frameToBlob()});const st=readState();updateState({enrolled:[{id,name,department,branch},...(st.enrolled||[])].slice(0,50),lastEmployee:id,homeWelcome:'Employee face enrolled in local FMS',homeSummary:id+' • '+data.embedding_dimensions+'-dimension embedding stored in local SQLite'});showModal('ENROLLMENT SUCCESSFUL','FMS generated an embedding and saved the profile.','Employee: '+id+' • Local demo SQLite',true,'✓','workflow-home')}
+ try{const data=await sendFms('/enroll',{kind:'employee',subject_id:id,name,branch,image:frameToBlob()});const st=readState();updateState({enrolled:[{id,name,department,branch},...(st.enrolled||[])].slice(0,50),lastEmployee:id,homeWelcome:'Employee face enrolled in local FMS',homeSummary:id+' • '+data.embedding_dimensions+'-dimension embedding stored in Supabase'});showModal('ENROLLMENT SUCCESSFUL','FMS generated an embedding and saved the profile.','Employee: '+id+' • Supabase',true,'✓','workflow-home')}
  catch(e){showModal('ENROLLMENT ERROR','FMS could not enroll the employee.',e.message,false,'!')}
 }
 async function enrollCustomer(){
  if(!checkCapturedPhoto())return;
  const id=document.getElementById('customerEnrollId').value.trim(),name=document.getElementById('customerEnrollName').value.trim(),branch=document.getElementById('customerEnrollBranch').value.trim();
  if(!id||!name||!branch||!document.getElementById('customerEnrollConsent').checked){showModal('ENROLLMENT INCOMPLETE','Enter ID, name, branch and acknowledge demo consent.','',false);return}
- try{const data=await sendFms('/enroll',{kind:'customer',subject_id:id,name,branch,image:frameToBlob()});const st=readState();updateState({customers:[{id,name,branch},...(st.customers||[])].slice(0,100),customerHubTitle:'Customer enrolled in local FMS',customerHubSummary:id+' • '+data.embedding_dimensions+'-dimension face embedding stored in SQLite'});showModal('ENROLLMENT SUCCESSFUL','FMS generated a real face embedding.','Customer: '+id+' • Local demo SQLite',true,'✓','customer-home')}
+ try{const data=await sendFms('/enroll',{kind:'customer',subject_id:id,name,branch,image:frameToBlob()});const st=readState();updateState({customers:[{id,name,branch},...(st.customers||[])].slice(0,100),customerHubTitle:'Customer enrolled in local FMS',customerHubSummary:id+' • '+data.embedding_dimensions+'-dimension face embedding stored in Supabase'});showModal('ENROLLMENT SUCCESSFUL','FMS generated a real face embedding.','Customer: '+id+' • Supabase',true,'✓','customer-home')}
  catch(e){showModal('ENROLLMENT ERROR','FMS could not enroll the customer.',e.message,false,'!')}
 }
 function demoServiceAction(){showModal('SERVICE DEMONSTRATION','This is a simulated banking service screen. Actual account access and financial transactions require the bank’s separate authorization controls.','No real transaction was initiated.',true,'ℹ',null)}
