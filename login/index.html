@@ -1,0 +1,70 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <title>FaceTrust Demo Login</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    body {
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .login-box {
+      width: min(400px, 90%);
+      padding: 30px;
+      border: 1px solid #ddd;
+      border-radius: 14px;
+    }
+    .login-box input {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin: 12px 0;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 12px;
+      cursor: pointer;
+    }
+    #error {
+      color: #d33;
+    }
+  </style>
+</head>
+<body>
+  <main class="login-box">
+    <h2>FaceTrust Demo Login</h2>
+    <p>Sign in to access FMS authentication.</p>
+
+    <form id="loginForm">
+      <input id="email"
+             type="email"
+             placeholder="Email"
+             autocomplete="username"
+             required>
+
+      <input id="password"
+             type="password"
+             placeholder="Password"
+             autocomplete="current-password"
+             required>
+
+      <button type="submit">Login</button>
+    </form>
+
+    <p id="error" role="alert"></p>
+  </main>
+
+  <script defer
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
+  </script>
+  <script defer src="/assets/auth.js"></script>
+  <script defer src="/assets/login.js"></script>
+</body>
+</html>

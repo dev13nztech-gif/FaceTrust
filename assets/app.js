@@ -54,13 +54,43 @@ function frameToBlob(){
  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
  return new Blob([bytes],{type:'image/jpeg'});
 }
-async function sendFms(path,fields){
- const body=new FormData();Object.entries(fields).forEach(([k,v])=>body.append(k,v));
- const res=await fetch(FMS_API+path,{method:'POST',body});
- let data;try{data=await res.json()}catch{throw new Error('FMS returned an invalid response');}
- if(!res.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));
- return data;
+
+async function sendFms(path, fields) {
+  const token = await getFmsToken();
+
+  const body = new FormData();
+
+  Object.entries(fields).forEach(([key, value]) => {
+    body.append(key, value);
+  });
+
+  const response = await fetch(FMS_API + path, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    },
+    body: body
+  });
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("FMS returned an invalid response");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data.detail === "string"
+        ? data.detail
+        : JSON.stringify(data.detail || data)
+    );
+  }
+
+  return data;
 }
+
 async function verify(area){
  if(!checkCapturedPhoto())return;
  const isCustomer=area==='customer',id=(document.getElementById(isCustomer?'customerId':'employeeId').value||'').trim();
