@@ -46,7 +46,7 @@ function closeModal(){const modal=document.getElementById('resultModal');modal.c
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('resultModal').classList.contains('open'))closeModal()});
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeModal()});
 // LOCAL FMS INTEGRATION: real embedding generation + similarity. Local demo ONLY.
-const FMS_API='http://127.0.0.1:8001/demo';
+const FMS_API=(window.FACETRUST_CONFIG?.fmsBaseUrl||'').replace(/\/$/,'') + '/demo';
 function frameToBlob(){
  if(!capturedFrame)throw new Error('Capture a face image first.');
  const [info,base64]=capturedFrame.split(',');
@@ -54,48 +54,19 @@ function frameToBlob(){
  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
  return new Blob([bytes],{type:'image/jpeg'});
 }
-
-async function sendFms(path, fields) {
-  const token = await getFmsToken();
-
-  const body = new FormData();
-
-  Object.entries(fields).forEach(([key, value]) => {
-    body.append(key, value);
-  });
-
-  const response = await fetch(FMS_API + path, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`
-    },
-    body: body
-  });
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error("FMS returned an invalid response");
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      typeof data.detail === "string"
-        ? data.detail
-        : JSON.stringify(data.detail || data)
-    );
-  }
-
-  return data;
+async function sendFms(path,fields){
+ const body=new FormData();Object.entries(fields).forEach(([k,v])=>body.append(k,v));
+ const token=await getFmsToken();
+ const res=await fetch(FMS_API+path,{method:'POST',headers:{Authorization:`Bearer ${token}`},body});
+ let data;try{data=await res.json()}catch{throw new Error('FMS returned an invalid response');}
+ if(!res.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));
+ return data;
 }
-
 async function verify(area){
  if(!checkCapturedPhoto())return;
  const isCustomer=area==='customer',id=(document.getElementById(isCustomer?'customerId':'employeeId').value||'').trim();
  if(!id){showModal('ID REQUIRED','Please enter the enrolled ID.','',false);return}
- // Test-only: liveness disabled for static-photo enrollment/matching. Not safe for deployment.
+ // Test-only: liveness disabled. Never use for real security decisions.
  try{
   const act=isCustomer?'check-in':(document.getElementById('attendanceAction').value==='Check Out'?'check-out':'check-in');
   const data=await sendFms('/verify',{kind:isCustomer?'customer':'employee',subject_id:id,image:frameToBlob(),threshold:'0.5',check_liveness:'false',action:act});

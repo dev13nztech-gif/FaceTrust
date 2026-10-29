@@ -1,24 +1,8 @@
-
 "use strict";
-
-document.getElementById("loginForm")
-  .addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const errorBox = document.getElementById("error");
-    const button = event.target.querySelector("button");
-
-    errorBox.textContent = "";
-    button.disabled = true;
-
-    try {
-      await loginFms(email, password);
-      window.location.replace("/workflow-home/");
-    } catch (error) {
-      errorBox.textContent = error.message;
-    } finally {
-      button.disabled = false;
-    }
-  });
+document.getElementById('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();const button=e.currentTarget.querySelector('button');const error=document.getElementById('error');error.textContent='';button.disabled=true;
+ try{await loginFms(document.getElementById('email').value.trim(),document.getElementById('password').value);
+ const p=new URLSearchParams(location.search).get('next')||'/';
+ location.replace(p.startsWith('/')&&!p.startsWith('//')?p:'/');
+ }catch(err){error.textContent=err.message;button.disabled=false;}
+});
